@@ -7,7 +7,7 @@ Provide a shared set of terms and definitions used across the Netbore docs to av
 
 Scope
 -----
-Canonical definitions referenced by `architecture.md`, `feature-list.md`, and other docs. Keep concise and stable.
+ Canonical definitions referenced by [architecture.md](architecture.md), [feature-list.md](features/feature-list.md), and other docs. Keep concise and stable.
 
 Glossary
 -------

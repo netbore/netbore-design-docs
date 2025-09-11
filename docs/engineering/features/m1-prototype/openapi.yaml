@@ -1,0 +1,164 @@
+openapi: 3.0.3
+info:
+  title: Netbore M1 Control API (Draft)
+  version: 0.1.0
+servers:
+  - url: https://control.public.tunnel.netbore.com
+paths:
+  /tunnels/create:
+    post:
+      summary: Create or claim a tunnel (returns ephemeral token + candidates)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TunnelsCreateRequest'
+      responses:
+        '200':
+          description: Tunnel created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TunnelsCreateResponse'
+  /tunnels/list:
+    get:
+      summary: List tunnels for the caller (management token required)
+      responses:
+        '200':
+          description: list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TunnelSummary'
+  /tunnels/delete:
+    post:
+      summary: Delete a tunnel (management rights required)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tunnel_id:
+                  type: string
+              required: ["tunnel_id"]
+      responses:
+        '204':
+          description: deleted
+  /auth/token:
+    post:
+      summary: Issue management tokens (M1: simple HMAC signed tokens)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                grant_type:
+                  type: string
+                client_id:
+                  type: string
+                client_secret:
+                  type: string
+              required: ["grant_type","client_id","client_secret"]
+      responses:
+        '200':
+          description: token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+components:
+  schemas:
+    TunnelsCreateRequest:
+      type: object
+      properties:
+        requested_name:
+          type: string
+        region_hint:
+          type: string
+        recreate_token_ttl_seconds:
+          type: integer
+        management_token:
+          type: string
+      required: []
+    Candidate:
+      type: object
+      properties:
+        edge_id:
+          type: string
+        edge_url:
+          type: string
+          format: uri
+        supported_transport:
+          type: string
+        region:
+          type: string
+      required: [edge_id,edge_url,supported_transport]
+    TunnelsCreateResponse:
+      type: object
+      properties:
+        tunnel_id:
+          type: string
+        public_hostname:
+          type: string
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/Candidate'
+        ephemeral_token:
+          type: string
+          description: "JWT (HMAC-SHA256) with ephemeral claims described in '#/components/schemas/EphemeralTokenClaims'"
+        recreate_token:
+          type: string
+          description: "Optional JWT with recreate claims described in '#/components/schemas/RecreateTokenClaims'"
+        candidates_expires_at:
+          type: string
+          format: date-time
+      required: [tunnel_id,public_hostname,candidates,ephemeral_token,candidates_expires_at]
+    EphemeralTokenClaims:
+      type: object
+      properties:
+        iss: { type: string }
+        sub: { type: string }
+        iat: { type: integer }
+        exp: { type: integer }
+        aud: { type: string }
+        name: { type: string }
+      required: [iss,sub,iat,exp]
+    RecreateTokenClaims:
+      type: object
+      properties:
+        iss: { type: string }
+        sub: { type: string }
+        name: { type: string }
+        iat: { type: integer }
+        exp: { type: integer }
+      required: [iss,sub,iat,exp]
+    ManagementTokenClaims:
+      type: object
+      properties:
+        iss: { type: string }
+        sub: { type: string }
+        iat: { type: integer }
+        exp: { type: integer }
+        scope: { type: ["string","array"] }
+        role: { type: string }
+      required: [iss,sub,iat,exp]
+    TunnelSummary:
+      type: object
+      properties:
+        tunnel_id:
+          type: string
+        public_hostname:
+          type: string
+        state:
+          type: string

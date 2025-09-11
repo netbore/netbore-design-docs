@@ -57,7 +57,6 @@ This section documents the canonical `POST /tunnels/create` request and response
 Request body (JSON)
 {
   "requested_name": "string (optional)",
-  "preferred_transports": ["wss","quic","tcp"],
   "region_hint": "string (optional)",
   "recreate_token_ttl_seconds": 3600, /* optional desired TTL */
   "management_token": "string (optional)"
@@ -89,10 +88,9 @@ Response details and semantics
 - `recreate_token` is an optional moderately long-lived token (signed JWT or opaque string) the agent may store locally to re-create the same tunnel/name later. The server will accept a valid `recreate_token` in subsequent `POST /tunnels/create` calls to return a fresh `ephemeral_token` and candidates for the same `tunnel_id`.
 - `candidates_expires_at` is the canonical timestamp after which agents should refresh candidates.
 
-JWT guidance
-------------
-- `ephemeral_token` claims (suggested): { iss, sub: <tunnel_id>, exp, iat, transports?, aud? }
-- `recreate_token` may be a signed JWT `{ iss, sub: <tunnel_id>, name, exp }` (stateless) or an opaque token. For Milestone 1 prefer a signed JWT to avoid server-side token storage and revocation complexity.
+JWT guidance (high level)
+------------------------
+The HLD remains high-level: the control-plane issues short-lived ephemeral tokens for Agent handshakes, optional recreate tokens to refresh ephemeral tokens, and longer-lived management tokens for administrative actions. Detailed claim shapes, validation rules, and examples live in the LLD and [data-schemas.md](data-schemas.md) (see those files for exact JSON Schema snippets and example JWT payloads).
 
 Agent flow (concise)
 -------------------
@@ -133,5 +131,5 @@ Non-goals for M1
 Next steps (after HLD approval)
 -------------------------------
 1. Produce the LLD for the tunnel protocol (framing, message types, error handling).
-2. Define the Control API OpenAPI spec and a minimal test harness.
+2. Define the Control API spec and a minimal test harness; the canonical OpenAPI should live in the implementation repository alongside the control-plane source (not duplicated in these design docs) to avoid conflicting sources of truth.
 3. Implement quick prototypes (Edge Dockerfile and Agent Dockerfile) and a local integration test.

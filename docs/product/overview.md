@@ -7,7 +7,7 @@ Provide a concise executive summary of Netbore for product and engineering stake
 
 Scope
 -----
-High-level product pitch, core differentiators, key success metrics, and a short recommendation for a first experiment (Milestone 1 prototype). This file intentionally omits low-level protocol details which live in `architecture.md` and later LLDs.
+High-level product pitch, core differentiators, key success metrics, and a short recommendation for a first experiment (Milestone 1 prototype). This file intentionally omits low-level protocol details which live in [architecture.md](../engineering/architecture.md) and later LLDs.
 
 Summary
 -------
@@ -33,4 +33,4 @@ Build Milestone 1: two container images (Edge + Agent) implementing `POST /tunne
 Next steps
 ----------
 - Approve Milestone 1 HLD and produce LLDs for the tunnel protocol and control API (OpenAPI).
-- Build the prototype and run the acceptance tests described in `roadmap.md`.
+- Build the prototype and run the acceptance tests described in [roadmap.md](../roadmap.md).
