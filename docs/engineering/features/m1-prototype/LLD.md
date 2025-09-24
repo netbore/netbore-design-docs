@@ -56,6 +56,10 @@ Frame encoding (detailed)
 
 JWT claims: single source of truth
 - Detailed claim shapes and JSON Schema for `ephemeral_token`, `recreate_token`, and `management_token` are maintained in [data-schemas.md](data-schemas.md). The LLD references that file as the canonical location for token claim shapes and examples.
+
+Security notes and the threat model are documented in [threat-model.md](./threat-model.md).
+
+Acceptance tests: see [integration-tests.md](./integration-tests.md) for the minimal acceptance test plan implementers should run against Edge and the control-plane stub.
   participant Viewer
 
   CP->>Agent: POST /tunnels/create

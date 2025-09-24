@@ -10,14 +10,36 @@ This file documents the WSS handshake and the binary frame protocol used between
 - Transport: WSS (WebSocket over TLS). The Agent opens a WebSocket and MUST send a single text-frame immediately containing a JSON handshake message. Edge responds with a text-frame JSON handshake response.
 
 Agent -> Edge handshake JSON (text frame)
+
+Schema (JSON Schema snippet)
+```
+{
+  "$id": "https://netbore.example/schemas/handshake.json",
+  "type": "object",
+  "properties": {
+    "type": { "const": "handshake" },
+    "ephemeral_token": { "type": "string" },
+    "requested_hostname": { "type": "string" },
+    "agent_id": { "type": "string" },
+    "agent_version": { "type": "string" },
+    "meta": { "type": "object" }
+  },
+  "required": ["type","ephemeral_token","requested_hostname"],
+  "additionalProperties": false
+}
+```
+
+Example JSON
+```
 {
   "type": "handshake",
   "ephemeral_token": "<jwt>",
   "requested_hostname": "myapp.public.tunnel.netbore.com",
-  "agent_id": "optional-agent-id",
+  "agent_id": "agent-1234",
   "agent_version": "0.1.0",
   "meta": { "local_addr": "127.0.0.1:8080" }
 }
+```
 
 Edge -> Agent handshake response JSON (text frame)
 {
@@ -30,8 +52,39 @@ Edge -> Agent handshake response JSON (text frame)
 }
 
 Handshake semantics
-- Edge validates ephemeral_token: signature, expiry (`exp`), and optional `sub`==tunnel_id.
-- If valid, Edge reserves the requested_hostname (if available) and returns status: ok. If requested name conflicts, Edge may return status: error with note.
+- Edge MUST extract the token using the WS auth precedence (see below) and then validate the token signature and `exp`/`nbf`/`iat` claims using the configured key material.
+- On successful validation, Edge compares `sub` or `name` claims to `requested_hostname` if present per control-plane policy. If the name is already reserved by another active tunnel, Edge returns a handshake_response with status `error` and a human `note` describing the conflict.
+
+Token extraction precedence (Edge MUST apply in this order):
+1. `Authorization: Bearer <jwt>` header (highest precedence)
+2. `Sec-WebSocket-Protocol: nb_token|<jwt>` — a token injected in the Sec-WebSocket-Protocol header using `|` as a separator
+3. `?nb_token=<jwt>` query parameter (lowest precedence)
+
+Sec-WebSocket-Protocol parsing example
+
+Clients that cannot set `Authorization` may supply a token using the `Sec-WebSocket-Protocol` header. For M1 we prefer the format `nb_token|<jwt>` where the pipe (`|`) separates the token kind from the compact JWT. The Edge SHOULD parse the header following standard header rules (comma-separated values), locate the first entry that begins with `nb_token` (optionally followed by a separator), and take the token portion for validation.
+
+Example header:
+
+Sec-WebSocket-Protocol: nb_token|eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30
+
+If multiple `nb_token` entries appear, Edge MUST take the first occurrence.
+
+Versioning and separator rationale
+
+Using a pipe (`|`) or similar safe separator makes it trivial to extend the left-hand side for versioning or metadata without changing the parsing of the JWT. Example future form:
+
+Sec-WebSocket-Protocol: nb_token.v1|<jwt>
+
+Edge parsers should split the token-kind and the jwt on the first separator and use the jwt part for validation while optionally using the left-hand metadata (e.g., `v1`) to adjust behaviour.
+
+Allowed separator notes
+
+HTTP token characters are limited; many punctuation characters are disallowed as separators. The pipe (`|`, 0x7C) is permitted and commonly available in user agents and servers and is therefore a reasonable default for this project.
+
+Recreate / re-activate semantics
+- If Agent uses a valid `recreate_token` (in lieu of ephemeral_token) during the handshake, Edge MAY accept it if the token maps to an existing tunnel_id and is within its TTL. If accepted, Edge SHOULD return `tunnel_id` in the handshake response and attempt to rebind the same `requested_hostname` to the new connection (subject to conflict rules).
+- If two Agents attempt to re-activate the same hostname simultaneously, Edge must consult control-plane policy: M1 behaviour is to accept the first completed handshake and reject subsequent concurrent handshakes for the same hostname with response `error`.
 
 JWT claim expectations
 - Claim shapes and examples are documented in [data-schemas.md](data-schemas.md). Protocol implementations MUST validate token signature and `exp`, and SHOULD correlate `sub` to the requested tunnel when present.

@@ -4,7 +4,9 @@ Status: Draft
 Netbore — Milestone 1 Data Schemas
 ==================================
 
-This file contains JSON Schema fragments and example objects used by the Control-plane and by runtime components.
+Purpose
+-------
+Canonical JSON Schema fragments and example objects used by the Control-plane and runtime components. These are intentionally compact for M1; we can expand into a `schemas/` directory for CI validation later.
 
 1) POST /tunnels/create request schema (partial)
 
@@ -132,3 +134,18 @@ requested_name: "myapp"
 ```
 
 Quality note: these schemas are intentionally small for M1. We can expand into full JSON Schema docs and place them under `schemas/` if you want formal validation in CI.
+
+JWT signing & key policy (recommended)
+- Supported algorithms (M1 defaults): HS256 and RS256. Control-plane SHOULD advertise the chosen algorithm per token (e.g., via `alg` header) and provide a JWKS endpoint for RS256.
+- Key distribution:
+  - RS256: control-plane exposes a JWKS URL (e.g., https://control.public.tunnel.netbore.com/.well-known/jwks.json). Edge fetches JWKS on startup and caches with ETag and TTL. On 401/401-like errors, Edge MAY refresh JWKS.
+  - HS256: control-plane and Edge share an HMAC secret via out-of-band configuration for M1 (simple deployment). Rotate secrets via configuration update.
+- Validation steps (Edge):
+  1. Extract token (Authorization header / Sec-WebSocket-Protocol / nb_token query param).
+  2. Parse token header to learn `alg` and optionally `kid`.
+  3. Lookup verification key: from JWKS (RS256) or configured secret (HS256).
+  4. Verify signature and `exp`/`nbf`/`iat` claims (allow clock skew tolerance, default 60 s).
+  5. Validate `sub`/`name` claim matches requested hostname per control-plane policy.
+
+Key rotation note:
+- For M1, simple rotation is acceptable: control-plane publishes new key in JWKS; Edge should refresh periodically and accept both old and new keys for a short overlap window.
